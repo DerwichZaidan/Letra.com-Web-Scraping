@@ -1,0 +1,83 @@
+# Instalando e importando as bibliotecas necessárias (Google Colab)
+!pip install tqdm 
+import requests
+from bs4 import BeautifulSoup
+import csv
+from tqdm import tqdm
+import time
+from google.colab import drive
+
+# Montar o Google Drive
+drive.mount('/content/drive')
+
+# URL da página do artista (ALTERE AQUI)
+url_artista = "https://www.letras.mus.br/seu-artista/"
+
+# Fazer uma solicitação HTTP para obter o conteúdo da página
+response = requests.get(url_artista)
+
+# Verificar se a solicitação foi bem-sucedida
+if response.status_code == 200:
+
+    # Analisar o conteúdo da página com BeautifulSoup
+    soup = BeautifulSoup(response.text, 'html.parser')
+
+    # Encontrar todas as letras de músicas na página
+    lista_alfabetica = soup.find_all('div', class_='cnt-list-alp--letter')
+
+    # Contar o total de músicas para calcular o progresso
+    total_musicas = sum(len(section.find_next('ul', class_='js-song-list').find_all('a', class_='songList-table-songName')) for section in lista_alfabetica)
+
+    # Inicialize a barra de progresso
+    barra_progesso = tqdm(total=total_musicas, position=0, leave=True)
+
+    # Nome do arquivo de saída (ALTERE AQUI)
+    caminho_saida_csv = '/content/drive/My Drive/letras_musicas.csv'
+
+    # Abra o arquivo CSV de saída para escrever
+    with open(caminho_saida_csv, 'w', newline='', encoding='utf-8') as csvfile:
+        fieldnames = ['Artista', 'Título', 'Letra']
+        writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+        writer.writeheader()
+
+        for section in lista_alfabetica:
+            letra = section.get('data-letter')
+            link_musica = section.find_next('ul', class_='js-song-list').find_all('a', class_='songList-table-songName')
+
+            for link in link_musica:
+                url_musica = "https://www.letras.mus.br" + link['href']
+
+                try:
+                    # Fazer uma solicitação HTTP para obter a página da letra da música
+                    song_response = requests.get(url_musica)
+                    song_response.raise_for_status()  # Verifica se a solicitação foi bem-sucedida
+
+                    song_soup = BeautifulSoup(song_response.text, 'html.parser')
+                    artista = song_soup.find('h2', {'class': 'head-subtitle'})
+                    titulo = song_soup.find('h1', {'class': 'head-title'})
+                    letra_musica = song_soup.find('div', {'class': 'lyric-original'})
+
+                    if artista and titulo and letra:
+                        # Extrair a letra da música como uma string e escrever no arquivo CSV
+                        artista = artista.text.strip()
+                        titulo = titulo.text.strip()
+                        letra_musica = letra_musica.get_text(separator='\n')
+                        writer.writerow({'Artista': artista, 'Título': titulo, 'Letra': letra_musica})
+
+                    # Atualize a barra de progresso
+                    barra_progesso.update(1)
+
+                except requests.RequestException as e:
+                    print(f"Erro durante a solicitação HTTP: {e}")
+                    continue
+                except Exception as e:
+                    print(f"Erro durante a análise do HTML: {e}")
+                    continue
+
+    # Feche a barra de progresso após a conclusão
+    barra_progesso.close()
+    # Mensagem de conclusão
+    print("Extração de letras concluída com sucesso!")
+
+else:
+    print("Falha ao acessar a página do artista.")
