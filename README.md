@@ -1,4 +1,4 @@
-# Letra.com-Web-Scraping
+# Letras.com-Web-Scraping
 
 Este é um notebook em Python feito no Google Colab, que realiza um web scraping no site <https://www.letras.com/>, com o objetivo de extrair todas as letras de música de um determinado artista. O resultado é um arquivo no formato .csv, dividido nas colunas 'Artista', 'Título' e 'Letra', que pode ser aproveitado para Análise de Sentimentos e Word Cloud.
 
